@@ -359,13 +359,22 @@
     // Register the service worker for offline play, and auto-reload once
     // when a new version has finished installing and taken control.
     if ("serviceWorker" in navigator) {
+      // On a first-ever visit the page loads with no controller yet, and the new
+      // service worker (which calls clients.claim()) immediately takes control of it -
+      // that alone fires "controllerchange" even though nothing has actually been
+      // updated. Only treat controllerchange as "a new version took over" - and worth
+      // reloading for - if this page load already had a controller (i.e. an existing
+      // install is being replaced), otherwise the title screen would reload itself
+      // a split-second after its very first paint.
+      const hadController = !!navigator.serviceWorker.controller;
+
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("sw.js");
       });
 
       let refreshing = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (refreshing) return;
+        if (refreshing || !hadController) return;
         refreshing = true;
         window.location.reload();
       });

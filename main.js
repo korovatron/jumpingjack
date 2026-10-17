@@ -480,7 +480,8 @@ function update(secondsPassed) {
     updateMoreLinkLayout();
     keyboardTimer -= secondsPassed;
 
-    titleRainbowHue = (titleRainbowHue + secondsPassed * (360 / TITLE_RAINBOW_CYCLE_SECONDS)) % 360;
+    titleRainbowElapsed = (titleRainbowElapsed + secondsPassed) % TITLE_RAINBOW_CYCLE_SECONDS;
+    titleRainbowHue = titleRainbowHueAt(titleRainbowElapsed);
 
     canFall -= secondsPassed;
     if (canFall < 0) {
@@ -1449,7 +1450,23 @@ const SCREEN_FLASH_DURATION_SECONDS = 0.08;
 
 // ROYGBIV HUE for title screen
 let titleRainbowHue = 60;
+let titleRainbowElapsed = 0; // seconds into the current cycle, see titleRainbowHueAt()
 const TITLE_RAINBOW_CYCLE_SECONDS = 8; // how long one full rainbow cycle takes
+
+// Eases the hue's rate of change to zero at the very start/end of each cycle (classic
+// smoothstep) instead of sweeping at a constant speed. A constant speed left yellow (the
+// starting colour) at full speed immediately, so it was gone - looking like a jump straight
+// to green - almost as soon as the title screen appeared. Easing means the hue barely moves
+// for the first moment after yellow (and again as it eases back into yellow at the end of
+// the loop), while moving faster through the rest of the cycle in between.
+function easeInOut(t) {
+    return t * t * (3 - 2 * t);
+}
+
+function titleRainbowHueAt(elapsedSeconds) {
+    const progress = elapsedSeconds / TITLE_RAINBOW_CYCLE_SECONDS;
+    return (60 + 360 * easeInOut(progress)) % 360;
+}
 
 // #region "More @ ..." title screen link
 // The visible text is drawn in the spectrum bitmap font (see the GameState.TITLE case in
