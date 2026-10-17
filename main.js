@@ -134,6 +134,28 @@ function onTouchEnd(x, y) {
     }
     touchSwipeDirection = null;
 }
+
+// If the page is interrupted or backgrounded mid-gesture (e.g. iOS sends the
+// app to the background during a swipe, or a call/notification cancels the
+// touch), no matching touchend is guaranteed to fire, so pressedKeys could
+// be left stuck with a direction key held down - making Jack keep running
+// on his own once the page is foregrounded again. Clear all held-input
+// state whenever that happens.
+function resetHeldInput() {
+    pressedKeys.clear();
+    keysPendingRelease.clear();
+    isTouching = false;
+    touchSwipeDirection = null;
+    keyboardTimer = 0;
+    canJump = true;
+}
+
+document.addEventListener('touchcancel', resetHeldInput, { passive: false });
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) resetHeldInput();
+});
+window.addEventListener('pagehide', resetHeldInput);
+window.addEventListener('blur', resetHeldInput);
 // #endregion
 
 // #region keyboard and mouse listeners
