@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script data-goatcounter="https://korovatron.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Jumping Jack</title>
+  <meta name="description"
+    content="A tribute to Jumping Jack, the 1983 ZX Spectrum classic by Albert Ball. Guide Jack through moving gaps, avoid hazards, climb ever higher, and chase a high score.">
+  <meta name="keywords"
+    content="jumping jack, zx spectrum, arcade game, retro gaming, online game, free game, javascript game, platform game">
+  <meta name="author" content="Neil Kendall">
+  <link rel="icon" href="images/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <link rel="canonical" href="https://www.korovatron.co.uk/jumpingjack/">
+
+  <!-- PWA: manifest, theme colour, and iOS home-screen support -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#302e2e">
+  <link rel="apple-touch-icon" href="images/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Jumping Jack">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.korovatron.co.uk/jumpingjack/">
+  <meta property="og:title" content="Jumping Jack">
+  <meta property="og:description"
+    content="A tribute to Jumping Jack, the 1983 ZX Spectrum classic by Albert Ball. Guide Jack through moving gaps, avoid hazards, climb ever higher, and chase a high score.">
+  <meta property="og:image" content="https://www.korovatron.co.uk/jumpingjack/images/share-image.png">
+  <meta property="og:site_name" content="Korovatron">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Jumping Jack">
+  <meta name="twitter:description"
+    content="A tribute to Jumping Jack, the 1983 ZX Spectrum classic by Albert Ball. Guide Jack through moving gaps, avoid hazards, climb ever higher, and chase a high score.">
+  <meta name="twitter:image" content="https://www.korovatron.co.uk/jumpingjack/images/share-image.png">
+
+  <!-- Structured data for search engines -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "BreadcrumbList",
+            "@id": "https://www.korovatron.co.uk/jumpingjack/#breadcrumb",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Korovatron",
+                    "item": "https://www.korovatron.co.uk/"
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Jumping Jack",
+                    "item": "https://www.korovatron.co.uk/jumpingjack/"
+                }
+            ]
+        },
+        {
+            "@type": "Game",
+            "@id": "https://www.korovatron.co.uk/jumpingjack/#game",
+            "name": "Jumping Jack",
+            "description": "A tribute to Jumping Jack, the 1983 ZX Spectrum classic by Albert Ball. Guide Jack through moving gaps, avoid hazards, climb ever higher, and chase a high score.",
+            "url": "https://www.korovatron.co.uk/jumpingjack/",
+            "author": {
+                "@type": "Person",
+                "name": "Neil Kendall",
+                "url": "https://www.korovatron.co.uk"
+            },
+            "publisher": {
+                "@id": "https://www.korovatron.co.uk/#organization"
+            },
+            "gamePlatform": "Web Browser",
+            "genre": "Platform",
+            "applicationCategory": "Game",
+            "isAccessibleForFree": true,
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "GBP"
+            },
+            "image": "https://www.korovatron.co.uk/jumpingjack/images/share-image.png",
+            "breadcrumb": {
+                "@id": "https://www.korovatron.co.uk/jumpingjack/#breadcrumb"
+            }
+        }
+    ]
+  }
+  </script>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      touch-action: none;
+      /* Prevent canvas panning */
+      background: #302e2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      transform-origin: top left;
+      touch-action: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Hidden content for search engines -->
+  <div style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;" aria-hidden="true">
+    <h1>Jumping Jack</h1>
+    <p>A tribute to Jumping Jack, the 1983 ZX Spectrum classic by
+      Albert Ball. Guide Jack through moving gaps, avoid hazards, climb ever higher
+      and chase a high score.</p>
+  </div>
+
+  <!--Define HTML5 Canvas Element -->
+  <canvas id="canvas" width="1024" height="768">
+    <p>This app requires HTML5 canvas support. Please upgrade to a modern browser.</p>
+  </canvas>
+
+  <script src="assets/jumpingjack-graphics.js"></script>
+  <script src="assets/jumpingjack-font.js"></script>
+  <script src="main.js"></script>
+
+  <script>
+    // Register the service worker for offline play, and auto-reload once
+    // when a new version has finished installing and taken control.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js");
+      });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    }
+  </script>
+
+</body>
+
+</html>
