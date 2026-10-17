@@ -172,6 +172,13 @@ window.addEventListener('blur', resetHeldInput);
 
 // #region keyboard and mouse listeners
 document.addEventListener('keydown', (e) => {
+    // Let the name-entry text input (and any other focused editable field) handle its own
+    // keys normally - otherwise space/arrow preventDefault() below would block typing into it.
+    const target = e.target;
+    const isTextInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    if (isTextInput) {
+        return;
+    }
     ensureAudioContext(); // Unlock audio on the first user gesture (see #region sound)
     pressedKeys.add(e.key);
     // disable arrow keys' and space's default behaviour i.e. scrolling the browser window
