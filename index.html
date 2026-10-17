@@ -114,6 +114,184 @@
       -webkit-touch-callout: none;
       user-select: none;
     }
+
+    .name-entry {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      transform-origin: center center;
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      font-family: "Courier New", Courier, monospace;
+      /* Rapid taps on the touch D-pad could otherwise be misread as a text-selection or
+         long-press gesture, popping up the native selection/"Translate" callout menu. */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    .name-entry.touch-mode {
+      gap: 14px;
+      /* This panel is top-anchored (translate(-50%, 0)) in touch mode rather than
+         centre-anchored, so the scale must pivot from the top too - otherwise scaling
+         shifts the top edge downward by half the height difference, an error that grows
+         as the canvas shrinks. */
+      transform-origin: center top;
+    }
+
+    .name-entry input {
+      box-sizing: border-box;
+      width: 400px;
+      padding: 8px 12px;
+      border: 3px solid yellow;
+      border-radius: 0;
+      background: #000000;
+      color: yellow;
+      font-family: inherit;
+      font-size: 40px;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      text-align: center;
+      text-transform: uppercase;
+      outline: none;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    /* On touch devices the name is shown as individual letter slots (classic arcade
+       high-score style) and edited with the D-pad below instead of the native keyboard,
+       which is unreliable to keep aligned with the canvas when it opens/closes. */
+    .touch-name-display {
+      display: none;
+      gap: 5px;
+      /* Reserves a gap below the slots and above the D-pad for the status/error message
+         drawn on the canvas (NAME_MESSAGE_Y_TOUCH in NameEntry.js), so it never ends up
+         hidden behind the D-pad. */
+      margin-bottom: 70px;
+    }
+
+    .touch-name-slot {
+      box-sizing: border-box;
+      width: 42px;
+      height: 56px;
+      border: 3px solid yellow;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: yellow;
+      font-family: inherit;
+      font-size: 31px;
+      font-weight: bold;
+    }
+
+    .touch-name-slot-active {
+      background: yellow;
+      color: #000000;
+    }
+
+    .touch-dpad {
+      display: none;
+      grid-template-columns: repeat(3, 85px);
+      grid-template-rows: repeat(3, 85px);
+      gap: 6px;
+    }
+
+    .dpad-btn {
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #7CFC00;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #7CFC00;
+      font-size: 34px;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* Manually toggled via JS rather than :active/:focus, since mobile browsers can leave
+       :active "stuck" on a button after a tap instead of releasing it on touchend. */
+    .dpad-btn.dpad-btn-pressed {
+      background: #7CFC00;
+      color: #000000;
+    }
+
+    .dpad-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .dpad-up {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .dpad-left {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .dpad-right {
+      grid-column: 3;
+      grid-row: 2;
+    }
+
+    .dpad-down {
+      grid-column: 2;
+      grid-row: 3;
+    }
+
+    .name-entry-buttons {
+      display: flex;
+      gap: 24px;
+    }
+
+    .name-entry button {
+      padding: 10px 24px;
+      border: 2px solid #7CFC00;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #7CFC00;
+      font-family: inherit;
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    /* Scoped to .name-entry-buttons specifically (not .name-entry button) so this never
+       matches the D-pad buttons, which already have their own explicit pressed-state
+       styling. The :hover part is further gated to real hover-capable devices, since on
+       touch devices tapping directly on a button triggers a synthetic/simulated :hover
+       state that then stays "stuck" until something else is tapped. */
+    @media (hover: hover) {
+      .name-entry-buttons button:hover {
+        background: #7CFC00;
+        color: #000000;
+        outline: none;
+      }
+    }
+
+    .name-entry-buttons button:focus-visible {
+      background: #7CFC00;
+      color: #000000;
+      outline: none;
+    }
+
+    .name-entry button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
   </style>
 </head>
 
@@ -132,9 +310,28 @@
     <p>This app requires HTML5 canvas support. Please upgrade to a modern browser.</p>
   </canvas>
 
+  <div id="nameEntry" class="name-entry">
+    <input id="nameInput" type="text" maxlength="10" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" aria-label="Your name">
+    <div id="touchNameDisplay" class="touch-name-display" aria-hidden="true"></div>
+    <div id="touchDpad" class="touch-dpad" aria-hidden="true">
+      <button type="button" class="dpad-btn dpad-up" data-dpad="up" aria-label="Previous letter">&#9650;</button>
+      <button type="button" class="dpad-btn dpad-left" data-dpad="left" aria-label="Move left">&#9664;</button>
+      <button type="button" class="dpad-btn dpad-right" data-dpad="right" aria-label="Move right">&#9654;</button>
+      <button type="button" class="dpad-btn dpad-down" data-dpad="down" aria-label="Next letter">&#9660;</button>
+    </div>
+    <div class="name-entry-buttons">
+      <button id="nameSubmit" type="button">Submit</button>
+      <button id="nameSkip" type="button">Skip</button>
+    </div>
+  </div>
+
   <script src="assets/jumpingjack-graphics.js"></script>
   <script src="assets/jumpingjack-font.js"></script>
+  <script src="ProfanityFilter.js"></script>
+  <script src="Leaderboard.js"></script>
+  <script src="NameEntry.js"></script>
   <script src="main.js"></script>
+  <script type="module" src="leaderboardService.js"></script>
 
   <script>
     // Register the service worker for offline play, and auto-reload once

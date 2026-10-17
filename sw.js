@@ -6,7 +6,7 @@
 // takes over (skipWaiting + clients.claim) and discards old caches. The page
 // (see index.html) listens for the resulting 'controllerchange' event and
 // reloads itself once to pick up the new assets.
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v7";
 const CACHE_NAME = `jumpingjack-${CACHE_VERSION}`;
 
 // App shell: everything needed to run the game fully offline.
@@ -15,6 +15,10 @@ const PRECACHE_URLS = [
   "./index.html",
   "./main.js",
   "./manifest.webmanifest",
+  "./ProfanityFilter.js",
+  "./Leaderboard.js",
+  "./NameEntry.js",
+  "./leaderboardService.js",
   "./assets/jumpingjack-font.js",
   "./assets/jumpingjack-graphics.js",
   "./images/favicon.ico",

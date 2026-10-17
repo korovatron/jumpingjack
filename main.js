@@ -48,7 +48,16 @@ let touchSwipeDirection = null;
 let touchSwipeReferenceX = 0;
 const TOUCH_SWIPE_THRESHOLD = 20; // game-space pixels of sideways movement needed to (re)register a swipe direction
 
+// True if a touch event's target is inside the name entry overlay (input, touch D-pad, or
+// Submit/Skip buttons) - these are real HTML controls layered over the canvas, so touches on
+// them must be left alone (no preventDefault, no simulated Space tap) or their native
+// click/tap behaviour would be suppressed.
+function isNameEntryTouchEvent(e) {
+    return e.target instanceof Element && e.target.closest('#nameEntry') !== null;
+}
+
 document.addEventListener('touchstart', (e) => {
+    if (isNameEntryTouchEvent(e)) return;
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -60,6 +69,7 @@ document.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 document.addEventListener('touchmove', (e) => {
+    if (isNameEntryTouchEvent(e)) return;
     e.preventDefault();
     if (!isTouching) return;
 
@@ -72,6 +82,7 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 document.addEventListener('touchend', (e) => {
+    if (isNameEntryTouchEvent(e)) return;
     e.preventDefault();
     if (!isTouching) return;
 
@@ -412,6 +423,14 @@ let lives = 6;
 let score = 0;
 let level = 0; // Internal level counter is zero-indexed (matches the original game); displayed as level+1
 
+// Leaderboard (see Leaderboard.js/NameEntry.js) - captured once at the moment of death so the
+// name entry screen and submission always reflect that run, even if score/level keep changing
+// (e.g. a lingering keypress) before the player finishes entering their name.
+let finalScore = 0;
+let finalLevel = 1;
+let nameEntryPending = false;
+let potentialLeaderboardEntryTracked = false;
+
 function isExtraLifeLevel(level) {
     return level === 5 || level === 10 || level === 15 || level === 20;
 }
@@ -422,7 +441,8 @@ const GameState = {
     INTRO: "INTRO", // one-time story teaser shown before level 1 (see BALLAD_TEASER)
     PLAYING: "PLAYING",
     LEVEL_COMPLETE: "LEVEL_COMPLETE",
-    GAME_OVER: "GAME_OVER"
+    GAME_OVER: "GAME_OVER",
+    NAME_ENTRY: "NAME_ENTRY" // high score entry, shown instead of returning straight to TITLE when the run qualifies
 };
 
 // #endregion
@@ -430,11 +450,14 @@ const GameState = {
 // #region gameLoad
 function gameLoad() {
     gameState = GameState.TITLE;
+    loadLeaderboard();
+    resetTitleView();
 }
 // #endregion
 
 // #region update game state
 function update(secondsPassed) {
+    updateNameEntryLayout();
     keyboardTimer -= secondsPassed;
 
     titleRainbowHue = (titleRainbowHue + secondsPassed * (360 / TITLE_RAINBOW_CYCLE_SECONDS)) % 360;
@@ -538,18 +561,12 @@ function update(secondsPassed) {
                         if (jackState === "fallingPart1") {
                             jackFrameCounter = 0;
                             jackPlatform += 1;
-                            if (jackPlatform === 8) {
-                                lives -= 1;
-                                if (lives === 0) {
-                                    gameState = GameState.GAME_OVER;
-                                    stopAllSound(); // Don't let gameplay sound bleed into the Game Over screen
-                                }
-                            }
+                            // Landing on the bottom platform (8) only costs a life once the dazed
+                            // (stunned) animation finishes below - not immediately on landing, which
+                            // would otherwise cost a second life for the same fall.
                             jackState = "fallingPart2";
                             jackY = baseHeight - graphics.jack.standingStill.height * pixelScale - ((8 - jackPlatform) * 24 * pixelScale);
-                            if (gameState !== GameState.GAME_OVER) {
-                                playJmpNote(4); // 5th of the 8-note descending run, right as Part 2 begins
-                            }
+                            playJmpNote(4); // 5th of the 8-note descending run, right as Part 2 begins
                         } else if (jackState === "fallingPart2") {
                             jackFrameCounter = 0;
                             jackState = "stunned1";
@@ -587,8 +604,7 @@ function update(secondsPassed) {
                         if (jackPlatform === 8) {
                             lives -= 1;
                             if (lives === 0) {
-                                gameState = GameState.GAME_OVER;
-                                stopAllSound(); // Don't let gameplay sound bleed into the Game Over screen
+                                enterGameOver();
                             }
                         }
                     }
@@ -621,6 +637,7 @@ function update(secondsPassed) {
 
     switch (gameState) {
         case GameState.TITLE: // title screen
+            updateTitleView(secondsPassed);
             if (keyboardTimer < 0) {
                 if (isKeyDownFresh(' ')) {
                     lives = 6;
@@ -776,17 +793,80 @@ function update(secondsPassed) {
         case GameState.GAME_OVER:
             if (keyboardTimer < 0) {
                 if (isKeyDownFresh(' ')) {
-                    gameState = GameState.TITLE
-                    stopAllSound();
                     keyboardTimer = keyboardDelay;
                     keysPendingRelease.add(' ');
+                    if (nameEntryPending && leaderboardQualifies(finalScore)) {
+                        nameEntryPending = false;
+                        startNameEntry();
+                    } else {
+                        returnToTitle();
+                    }
                 }
             }
+            break;
+
+        case GameState.NAME_ENTRY:
+            // The HTML overlay (NameEntry.js) owns all input on this screen - nothing to do here.
             break;
 
         default:
             break;
     }
+}
+
+// Fires once per game over, capturing the run's final score/level so it stays stable even if
+// the player lingers on the Game Over screen (and computing whether it already qualifies for
+// the leaderboard, same check NameEntry.js uses when actually submitting).
+function enterGameOver() {
+    stopAllSound(); // Don't let gameplay sound bleed into the Game Over/Name Entry screen
+    finalScore = score;
+    finalLevel = level + 1; // Internal level is zero-indexed; the level reached is level+1 (see its declaration)
+    nameEntryPending = leaderboardQualifies(finalScore);
+    potentialLeaderboardEntryTracked = false;
+    trackPotentialLeaderboardEntry();
+
+    if (nameEntryPending) {
+        // Already known (from the leaderboard data loaded at startup/last game over) to
+        // qualify for the Top 50 - skip the Game Over screen and go straight to name entry.
+        startNameEntry();
+    } else {
+        gameState = GameState.GAME_OVER;
+    }
+
+    // Re-check against fresh data, since other players may have posted scores since the last
+    // read. Only matters for the GAME_OVER screen's Space-key handling below - if we already
+    // jumped straight to NAME_ENTRY above, the gameState check here is false and this is a no-op.
+    if (window.leaderboardService && finalScore > 0) {
+        loadLeaderboard().then(refreshed => {
+            if (refreshed && gameState === GameState.GAME_OVER) {
+                nameEntryPending = leaderboardQualifies(finalScore);
+                trackPotentialLeaderboardEntry();
+            }
+        });
+    }
+}
+
+// Fires once per game over, as soon as the score qualifies for the leaderboard -
+// counts the opportunity even if the player skips entering their name.
+function trackPotentialLeaderboardEntry() {
+    if (!nameEntryPending || potentialLeaderboardEntryTracked) {
+        return;
+    }
+    potentialLeaderboardEntryTracked = true;
+    if (window.goatcounter && typeof window.goatcounter.count === 'function') {
+        window.goatcounter.count({
+            path: 'jumping-jack-potential-leaderboard-addition',
+            title: 'Jumping Jack Potential Leaderboard Addition',
+            event: true
+        });
+    }
+}
+
+function returnToTitle() {
+    gameState = GameState.TITLE;
+    stopAllSound();
+    nameEntryPending = false;
+    resetTitleView();
 }
 // #endregion
 
@@ -796,7 +876,7 @@ function draw() {
     // The Title, Intro, Level Complete and Game Over screens use a black
     // background (like the real ZX Spectrum's PAPER 0) - every other screen
     // keeps the usual canvasColour.
-    const useBlackBackground = gameState === GameState.TITLE || gameState === GameState.INTRO || gameState === GameState.LEVEL_COMPLETE || gameState === GameState.GAME_OVER;
+    const useBlackBackground = gameState === GameState.TITLE || gameState === GameState.INTRO || gameState === GameState.LEVEL_COMPLETE || gameState === GameState.GAME_OVER || gameState === GameState.NAME_ENTRY;
     context.fillStyle = useBlackBackground ? "black" : canvasColour;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -820,9 +900,15 @@ function draw() {
     switch (gameState) {
         case GameState.TITLE: {
             const spriteTopY = 20;
-            drawSprite(context, graphics.loadingScreenFigures, 0,
-                (baseWidth - graphics.loadingScreenFigures.width * pixelScale) / 2,
-                spriteTopY, `hsl(${titleRainbowHue}, 100%, 50%)`, pixelScale);
+            context.globalAlpha = titleViewAlpha();
+            if (titleView.mode === 'sprite') {
+                drawSprite(context, graphics.loadingScreenFigures, 0,
+                    (baseWidth - graphics.loadingScreenFigures.width * pixelScale) / 2,
+                    spriteTopY, `hsl(${titleRainbowHue}, 100%, 50%)`, pixelScale);
+            } else {
+                drawLeaderboardPage(context);
+            }
+            context.globalAlpha = 1;
             const titleY = spriteTopY + graphics.loadingScreenFigures.height * pixelScale + 60;
             drawCentredText(context, "A Tribute to Jumping Jack", titleY, "cyan");
             drawCentredText(context, "By Neil Kendall 2026", titleY + 50, "cyan", 3);
@@ -908,11 +994,23 @@ function draw() {
         case GameState.GAME_OVER:
             drawCentredText(context, "Game Over\n\n" + actionPrompt("Restart"), baseHeight / 4, "red");
             break;
+
+        case GameState.NAME_ENTRY:
+            drawNameEntry(context);
+            break;
         default:
             break;
     }
 
     context.restore();
+
+    // Top-score banner in the top margin (only has room before the sprite/leaderboard area
+    // starts) - only shown once real leaderboard data has loaded and there's an actual entry;
+    // stays blank while offline/loading or if the leaderboard is still empty.
+    if (gameState === GameState.TITLE && leaderboardEntries.length > 0) {
+        const topEntry = leaderboardEntries[0];
+        drawCentredText(context, "HI SCORE " + topEntry.name + " " + topEntry.score.toString().padStart(6, '0'), verticalMargin / 2, "magenta", 3);
+    }
 
     if (stripeDrawnLast) {
         drawSpectrumStripe(context, true);
