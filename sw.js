@@ -1,11 +1,4 @@
-// Jumping Jack - Service Worker
-//
-// Provides offline support (precache the app shell) and auto-updating:
-// bump CACHE_VERSION whenever any cached file changes. Browsers detect this
-// file's byte-for-byte change, install the new worker, which immediately
-// takes over (skipWaiting + clients.claim) and discards old caches. The page
-// (see index.html) listens for the resulting 'controllerchange' event and
-// reloads itself once to pick up the new assets.
+
 const CACHE_VERSION = "v10";
 const CACHE_NAME = `jumpingjack-${CACHE_VERSION}`;
 

@@ -1,18 +1,9 @@
-// High score name entry screen (GameState.NAME_ENTRY). The text is drawn on the canvas and
-// the input and buttons are HTML elements laid over it. Touch devices get a classic
-// arcade-style letter picker (left/right to move between letter slots, up/down to cycle the
-// letter) instead of focusing the real input, since native mobile keyboards are unreliable to
-// keep aligned with the canvas (the browser pans/resizes the viewport in ways that vary by
-// platform and keep drifting out of sync with the canvas underneath).
-
 const NAME_STORAGE_KEY = 'jumpingJackPlayerName';
 const NAME_DISALLOWED_CHARS = /[^A-Za-z0-9 _-]/g;
 const NAME_PANEL_Y = 420; // centre of the input and buttons, in canvas (game-space) coordinates (desktop)
 const NAME_ENTER_LABEL_Y_TOUCH = 300; // "ENTER YOUR NAME" label (touch), raised to make room below
 const NAME_PANEL_TOP_TOUCH = 340; // top of the letter slots, just below the label (touch)
-// A gap is reserved (see the .touch-name-display margin-bottom) between the letter slots and
-// the D-pad specifically so status/error messages (e.g. "NAME NOT ALLOWED") have clear space
-// to render in, rather than being hidden behind the D-pad below them.
+
 const NAME_MESSAGE_Y_TOUCH = 430;
 const NAME_SAVED_DELAY_MS = 1000;
 // Characters selectable with the touch D-pad's up/down letter cycle, in cycling order
@@ -79,14 +70,7 @@ function getNameEntryElements() {
     return nameEntryElements;
 }
 
-// Mobile browsers can leave a tapped button's :active/:focus styling "stuck" on instead of
-// releasing it after the tap ends - iOS Safari in particular has a known bug (notably since
-// 17.4.1) where pointerup/touchend can silently stop being delivered to the element that
-// received the pointerdown/touchstart. So the pressed look is applied/cleared manually via a
-// class, release handlers are attached at the document level per Apple's own workaround
-// rather than on the button itself, "click" (which keeps firing even when pointerup doesn't)
-// is also treated as a release signal, and a short timeout self-heals it if every event-based
-// release is missed.
+
 function setUpDpadPressedHighlight(touchDpad) {
     const PRESSED_CLASS = 'dpad-btn-pressed';
     const SAFETY_TIMEOUT_MS = 500;
@@ -133,17 +117,12 @@ function setNameEntryBusy(busy) {
     skip.disabled = busy;
 }
 
-// Keeps Submit greyed out while busy or while there's nothing worth submitting, instead of
-// relying on an "ENTER A NAME" message that would otherwise need to share the cramped space
-// above the D-pad on touch devices.
 function updateSubmitAvailability() {
     const { input, submit } = getNameEntryElements();
     const hasName = input.value.replace(/\s+/g, '').length > 0;
     submit.disabled = nameEntry.busy || !hasName;
 }
 
-// Writes the current slot letters into the (hidden, on touch) input so submitName() and its
-// existing validation keep working unchanged regardless of which UI is being used.
 function syncTouchNameToInput() {
     const { input } = getNameEntryElements();
     input.value = nameEntry.slots.join('');
@@ -203,8 +182,7 @@ function startNameEntry() {
     const touchMode = isTouchDevice;
     nameEntry.touchMode = touchMode;
     panel.classList.toggle('touch-mode', touchMode);
-    // On touch devices, hide the real input (so it can never summon the native keyboard)
-    // and use the letter-slot display and D-pad instead; desktop keeps the real input.
+
     input.style.display = touchMode ? 'none' : '';
     touchNameDisplay.style.display = touchMode ? 'flex' : 'none';
     touchDpad.style.display = touchMode ? 'grid' : 'none';
@@ -229,9 +207,7 @@ function hideNameEntry() {
     input.blur();
 }
 
-// Keeps the HTML controls aligned with the canvas as it scales. Called every frame (see
-// update()) since resizeCanvas already keeps canvas/scale current without needing a dedicated
-// hook here.
+
 function updateNameEntryLayout() {
     if (gameState !== GameState.NAME_ENTRY) {
         return;
@@ -241,8 +217,7 @@ function updateNameEntryLayout() {
     const canvasScale = canvasRect.width / baseWidth;
     panel.style.left = `${canvasRect.left + (baseWidth / 2) * canvasScale}px`;
     if (nameEntry.touchMode) {
-        // Anchored by its top edge so the slot display and D-pad below have room to grow
-        // downward without overlapping the score/rank text drawn above it on the canvas.
+
         panel.style.top = `${canvasRect.top + (verticalMargin + NAME_PANEL_TOP_TOUCH) * canvasScale}px`;
         panel.style.transform = `translate(-50%, 0) scale(${canvasScale})`;
     } else {
@@ -251,8 +226,7 @@ function updateNameEntryLayout() {
     }
 }
 
-// Hides the D-pad and Submit/Skip buttons so the "SCORE SAVED!" message (drawn on the
-// canvas just below them) has clear space instead of overlapping still-visible controls.
+
 function hideNameEntrySaveControls() {
     const { touchDpad, submit, skip } = getNameEntryElements();
     touchDpad.style.display = 'none';
@@ -267,8 +241,7 @@ function submitName() {
     const { input } = getNameEntryElements();
     const name = input.value.replace(/\s+/g, ' ').trim();
     if (name.length === 0) {
-        // Submit is greyed out whenever there's nothing to submit, but the Enter key still
-        // reaches here directly, so fail silently rather than showing a message.
+
         return;
     }
     if (!isNameAllowed(name)) {
