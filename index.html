@@ -292,6 +292,26 @@
       opacity: 0.4;
       cursor: default;
     }
+
+    /* Invisible hit-area for the "More @ www.korovatron.co.uk" title screen link - the
+       visible pixel-font text is drawn on the canvas (see drawCentredText in main.js); this
+       real <a> is positioned exactly over it (see updateMoreLinkLayout in main.js) purely so
+       the link is a genuine, accessible, right-clickable/keyboard-focusable hyperlink. Its
+       own text is kept for screen readers/crawlers but hidden visually. */
+    .more-link {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      transform-origin: center center;
+      display: none;
+      color: transparent;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
   </style>
 </head>
 
@@ -309,6 +329,8 @@
   <canvas id="canvas" width="1024" height="768">
     <p>This app requires HTML5 canvas support. Please upgrade to a modern browser.</p>
   </canvas>
+
+  <a id="moreLink" class="more-link" href="https://www.korovatron.co.uk/" target="_blank" rel="noopener noreferrer">www.korovatron.co.uk</a>
 
   <div id="nameEntry" class="name-entry">
     <input id="nameInput" type="text" maxlength="10" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" aria-label="Your name">

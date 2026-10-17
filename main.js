@@ -48,16 +48,17 @@ let touchSwipeDirection = null;
 let touchSwipeReferenceX = 0;
 const TOUCH_SWIPE_THRESHOLD = 20; // game-space pixels of sideways movement needed to (re)register a swipe direction
 
-// True if a touch event's target is inside the name entry overlay (input, touch D-pad, or
-// Submit/Skip buttons) - these are real HTML controls layered over the canvas, so touches on
-// them must be left alone (no preventDefault, no simulated Space tap) or their native
-// click/tap behaviour would be suppressed.
-function isNameEntryTouchEvent(e) {
-    return e.target instanceof Element && e.target.closest('#nameEntry') !== null;
+// True if a touch event's target is inside the name entry overlay (input, touch D-pad,
+// Submit/Skip buttons) or the title screen's "More @ ..." link - these are real HTML
+// controls layered over the canvas, so touches on them must be left alone (no
+// preventDefault, no simulated Space tap) or their native click/tap behaviour would be
+// suppressed.
+function isOverlayTouchEvent(e) {
+    return e.target instanceof Element && e.target.closest('#nameEntry, #moreLink') !== null;
 }
 
 document.addEventListener('touchstart', (e) => {
-    if (isNameEntryTouchEvent(e)) return;
+    if (isOverlayTouchEvent(e)) return;
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -69,7 +70,7 @@ document.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 document.addEventListener('touchmove', (e) => {
-    if (isNameEntryTouchEvent(e)) return;
+    if (isOverlayTouchEvent(e)) return;
     e.preventDefault();
     if (!isTouching) return;
 
@@ -82,7 +83,7 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 document.addEventListener('touchend', (e) => {
-    if (isNameEntryTouchEvent(e)) return;
+    if (isOverlayTouchEvent(e)) return;
     e.preventDefault();
     if (!isTouching) return;
 
@@ -228,6 +229,17 @@ function gameLoop(timeStamp) {
 window.onload = init;
 function init() {
     createCanvas();
+    setUpMoreLinkHover();
+}
+
+// Hover is only meaningful on devices with a real mouse - on touch devices a tap would
+// otherwise leave the link "stuck" in its hovered (cyan) colour until something else is
+// tapped, since there's no mouseleave to clear it.
+function setUpMoreLinkHover() {
+    const link = document.getElementById('moreLink');
+    if (!link || !window.matchMedia('(hover: hover)').matches) return;
+    link.addEventListener('mouseenter', () => { moreLinkHovered = true; });
+    link.addEventListener('mouseleave', () => { moreLinkHovered = false; });
 }
 function createCanvas() {
     canvas = document.getElementById('canvas');
@@ -458,6 +470,7 @@ function gameLoad() {
 // #region update game state
 function update(secondsPassed) {
     updateNameEntryLayout();
+    updateMoreLinkLayout();
     keyboardTimer -= secondsPassed;
 
     titleRainbowHue = (titleRainbowHue + secondsPassed * (360 / TITLE_RAINBOW_CYCLE_SECONDS)) % 360;
@@ -914,6 +927,9 @@ function draw() {
             drawCentredText(context, "By Neil Kendall 2026", titleY + 50, "cyan", 3);
             drawCentredText(context, "Original Game by Albert Ball 1983", titleY + 120, "green", 3);
             drawCentredText(context, actionPrompt("Start"), titleY + 170, "yellow", 3);
+            const moreLink = moreLinkLayout();
+            drawBitmapText(context, MORE_LINK_PREFIX, moreLink.prefixX, moreLink.y, "blue", MORE_LINK_SCALE, "left");
+            drawBitmapText(context, MORE_LINK_DOMAIN, moreLink.domainX, moreLink.y, moreLinkHovered ? "cyan" : "blue", MORE_LINK_SCALE, "left");
             break;
         }
 
@@ -1427,6 +1443,62 @@ const SCREEN_FLASH_DURATION_SECONDS = 0.08;
 // ROYGBIV HUE for title screen
 let titleRainbowHue = 60;
 const TITLE_RAINBOW_CYCLE_SECONDS = 8; // how long one full rainbow cycle takes
+
+// #region "More @ ..." title screen link
+// The visible text is drawn in the spectrum bitmap font (see the GameState.TITLE case in
+// draw()); a real, invisible <a> (#moreLink in index.html, href set there) is kept
+// positioned exactly over just the "www.korovatron.co.uk" portion by updateMoreLinkLayout()
+// so it behaves as a genuine hyperlink (keyboard-focusable, right-clickable, screen-reader
+// visible) rather than just canvas pixels. The "More @ " prefix stays static, non-interactive
+// text - only the domain part hovers/clicks.
+const MORE_LINK_PREFIX = "More @ ";
+const MORE_LINK_DOMAIN = "www.korovatron.co.uk";
+const MORE_LINK_TEXT = MORE_LINK_PREFIX + MORE_LINK_DOMAIN; // full line, as drawn
+const MORE_LINK_SCALE = 3; // matches the other prompt lines on the title screen
+let moreLinkHovered = false; // true while the mouse is over #moreLink (desktop hover only)
+
+// Vertical centre (game-space y, before the verticalMargin translate) of the link's text -
+// shared by draw() and updateMoreLinkLayout() so the drawn pixels and the invisible <a>
+// never drift apart.
+function moreLinkCentreY() {
+    const spriteTopY = 20;
+    const titleY = spriteTopY + graphics.loadingScreenFigures.height * pixelScale + 60;
+    return titleY + 220;
+}
+
+// Horizontal geometry (game-space, before the verticalMargin translate) of the full centred
+// line and of just the clickable MORE_LINK_DOMAIN portion within it - shared by draw() and
+// updateMoreLinkLayout() so the drawn pixels and the invisible <a> never drift apart.
+function moreLinkLayout() {
+    const y = moreLinkCentreY();
+    const charWidth = bitmapFont.width * MORE_LINK_SCALE;
+    const prefixX = baseWidth / 2 - (MORE_LINK_TEXT.length * charWidth) / 2;
+    const domainX = prefixX + MORE_LINK_PREFIX.length * charWidth;
+    const domainWidth = MORE_LINK_DOMAIN.length * charWidth;
+    const height = bitmapFont.height * MORE_LINK_SCALE;
+    return { y, prefixX, domainX, domainWidth, height };
+}
+
+// Keeps #moreLink aligned with the "www.korovatron.co.uk" pixels on the canvas, the same way
+// updateNameEntryLayout() does for the name entry controls - called every frame from update().
+function updateMoreLinkLayout() {
+    const link = document.getElementById('moreLink');
+    if (!link) return;
+    if (gameState !== GameState.TITLE) {
+        link.style.display = 'none';
+        moreLinkHovered = false;
+        return;
+    }
+    link.style.display = 'block';
+    const canvasRect = canvas.getBoundingClientRect();
+    const canvasScale = canvasRect.width / baseWidth;
+    const layout = moreLinkLayout();
+    link.style.width = `${layout.domainWidth * canvasScale}px`;
+    link.style.height = `${layout.height * canvasScale}px`;
+    link.style.left = `${canvasRect.left + (layout.domainX + layout.domainWidth / 2) * canvasScale}px`;
+    link.style.top = `${canvasRect.top + (verticalMargin + layout.y) * canvasScale}px`;
+}
+// #endregion
 
 function playShock() {
     screenFlashTimer = SCREEN_FLASH_DURATION_SECONDS;
