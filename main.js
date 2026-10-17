@@ -1022,6 +1022,7 @@ function draw() {
         context.fillRect(0, 0, canvas.width, canvas.height);
         context.globalAlpha = 1;
     }
+
 }
 // #endregion
 
