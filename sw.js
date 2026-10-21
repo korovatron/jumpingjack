@@ -1,5 +1,5 @@
 
-const CACHE_VERSION = "v12";
+const CACHE_VERSION = "v13";
 const CACHE_NAME = `jumpingjack-${CACHE_VERSION}`;
 
 // App shell: everything needed to run the game fully offline.

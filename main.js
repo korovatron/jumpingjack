@@ -566,6 +566,10 @@ function update(secondsPassed) {
                                 createGaps();
                                 gameState = GameState.LEVEL_COMPLETE;
                                 stopAllSound(); // Don't let gameplay sound bleed into the Level Complete screen
+                                // If Space made the winning jump, require a release before it can dismiss the Level Complete text
+                                if (isKeyDown(' ')) {
+                                    keysPendingRelease.add(' ');
+                                }
                             }
                         }
                     } else {
